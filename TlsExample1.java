@@ -50,7 +50,25 @@ public class TlsExample1 {
 						      sigHashAlg);
 	}
          
-        
+	@Override
+	public CertificateRequest getCertificateRequest() throws IOException {
+	    System.out.println("server getCertificateRequest");
+
+	    Vector sigAndHashAlgs = new Vector(1);
+	    sigAndHashAlgs.add(new SignatureAndHashAlgorithm(HashAlgorithm.sha1, SignatureAlgorithm.rsa));
+	    return new CertificateRequest(new short[]{ClientCertificateType.rsa_sign},
+					  sigAndHashAlgs,
+					  null);
+					  
+	}
+
+	@Override
+	public void notifyClientCertificate(Certificate clientCertificate) throws IOException {
+	    // TODO validate client cert
+	    System.out.println("server recv client cert");
+	}
+
+
         @Override
         public void run() {
             ServerSocket serverSocket = null;
@@ -118,17 +136,7 @@ public class TlsExample1 {
 
 		    TlsCertificate[] certChain = new TlsCertificate[]{getCrypto().createCertificate(o.getContent())};
 		    Certificate certificate = new Certificate(certChain);
-
-		    Vector supportedSigAlgs = certificateRequest.getSupportedSignatureAlgorithms();
-                    SignatureAndHashAlgorithm signatureAndHashAlgorithm = null;
-		    for (Object supported : supportedSigAlgs) {
-			SignatureAndHashAlgorithm alg = (SignatureAndHashAlgorithm) supported;
-                        if (alg.getSignature() == SignatureAlgorithm.rsa) {
-                            // Just grab the first one we find
-                            signatureAndHashAlgorithm = alg;
-                            break;
-                        }
-                    }
+                    SignatureAndHashAlgorithm signatureAndHashAlgorithm = new SignatureAndHashAlgorithm(HashAlgorithm.sha1, SignatureAlgorithm.rsa);
                     
                     return new BcDefaultTlsCredentialedSigner(new TlsCryptoParameters(context),
                                                               (BcTlsCrypto) getCrypto(),
