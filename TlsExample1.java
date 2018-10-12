@@ -63,6 +63,10 @@ public class TlsExample1 {
                 System.out.println("server start handshake");
                 serverProtocol.accept(this);
                 System.out.println("server end handshake");
+
+		int data = serverProtocol.getInputStream().read();
+		System.out.println("server recv data: " + data);
+		
             } catch (IOException e) {
                 e.printStackTrace();
             } finally {
@@ -144,8 +148,17 @@ public class TlsExample1 {
                 socket.connect(new InetSocketAddress("localhost", 9999));
                 TlsClientProtocol clientProtocol = new TlsClientProtocol(socket.getInputStream(),
 									 socket.getOutputStream());
-                clientProtocol.connect(this);
-                System.out.println("client start handshake");
+		System.out.println("client start handshake");
+		clientProtocol.connect(this);
+                System.out.println("client end handshake");
+
+		// note that writing to socket.getOutputStream() will send
+		// data in plaintext (i.e., it is not TLS application data record)
+		
+		System.out.println("client send data: " + 100);
+		clientProtocol.getOutputStream().write(100);
+
+		
             } catch (IOException e) {
                 e.printStackTrace();
             } finally {
