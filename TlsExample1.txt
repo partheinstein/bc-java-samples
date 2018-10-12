@@ -1,0 +1,10 @@
+To capture network traffic, use tcpdump or ssldump:
+
+tcpdump
+-------
+sudo tcpdump -i lo -s0 -w TlsExample1.pcap
+ssldump -r TlsExample1.pcap
+
+ssldump
+-------
+sudo ssldump -i lo 

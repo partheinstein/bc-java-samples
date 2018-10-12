@@ -5,6 +5,7 @@ import java.net.Socket;
 import java.net.ServerSocket;
 import java.net.InetSocketAddress;
 import java.security.SecureRandom;
+import java.util.Vector;
 
 import org.bouncycastle.tls.*;
 import org.bouncycastle.tls.crypto.impl.bc.BcTlsCrypto;
@@ -23,6 +24,31 @@ public class TlsExample1 {
         public Server() {
             super(new BcTlsCrypto(new SecureRandom()));
         }
+
+	@Override
+	protected TlsCredentialedSigner getRSASignerCredentials() throws IOException {
+	    System.out.println("get server signer credentials");
+	    FileInputStream fis = new FileInputStream("x509-server-key-rsa-sign.pem");
+	    PemReader p = new PemReader(new InputStreamReader(fis));
+	    PemObject o = p.readPemObject();
+	    p.close();
+
+	    AsymmetricKeyParameter privateKey = PrivateKeyFactory.createKey(o.getContent());
+
+	    // read cert
+	    p = new PemReader(new InputStreamReader(new FileInputStream("x509-server-rsa-sign.pem")));
+	    o = p.readPemObject();
+	    p.close();
+
+	    TlsCertificate[] certChain = new TlsCertificate[]{getCrypto().createCertificate(o.getContent())};
+	    Certificate certificate = new Certificate(certChain);
+	    SignatureAndHashAlgorithm sigHashAlg = (SignatureAndHashAlgorithm) TlsUtils.getDefaultRSASignatureAlgorithms().elementAt(0);
+	    return new BcDefaultTlsCredentialedSigner(new TlsCryptoParameters(context),
+						      (BcTlsCrypto) getCrypto(),
+						      privateKey,
+						      certificate,
+						      sigHashAlg);
+	}
          
         
         @Override
@@ -32,7 +58,8 @@ public class TlsExample1 {
             try {
                 serverSocket = new ServerSocket(9999);
                 socket = serverSocket.accept();
-                TlsServerProtocol serverProtocol = new TlsServerProtocol(socket.getInputStream(), socket.getOutputStream());
+                TlsServerProtocol serverProtocol = new TlsServerProtocol(socket.getInputStream(),
+									 socket.getOutputStream());
                 System.out.println("server start handshake");
                 serverProtocol.accept(this);
                 System.out.println("server end handshake");
@@ -60,31 +87,38 @@ public class TlsExample1 {
         public TlsAuthentication getAuthentication() throws IOException {
             return new TlsAuthentication() {
                 @Override
-                public void notifyServerCertificate(TlsServerCertificate serverCertificate) throws IOException {
+                public void notifyServerCertificate(TlsServerCertificate serverCertificate)
+		    throws IOException {
+		    
                     System.out.println("notifyServerCertificate");
                 }
 
                 @Override
-                public TlsCredentials getClientCredentials(CertificateRequest certificateRequest) throws IOException {
+                public TlsCredentials getClientCredentials(CertificateRequest certificateRequest)
+		    throws IOException {
+		    
                     System.out.println("getClientCredentials");
 
                     // read private key
-                    PemReader p = new PemReader(new InputStreamReader(new FileInputStream("x509-client-key-rsa.pem")));
+		    FileInputStream fis = new FileInputStream("x509-client-key-rsa.pem");
+		    PemReader p = new PemReader(new InputStreamReader(fis));
                     PemObject o = p.readPemObject();
                     p.close();
 
                     AsymmetricKeyParameter privateKey = PrivateKeyFactory.createKey(o.getContent());
 
                     // read cert
-                    p = new PemReader(new InputStreamReader(new FileInputStream("x509-client-key-rsa.pem")));
+                    p = new PemReader(new InputStreamReader(new FileInputStream("x509-client-rsa.pem")));
                     o = p.readPemObject();
                     p.close();
 
-                    Certificate certificate = new Certificate(new TlsCertificate[]{getCrypto().createCertificate(o.getContent())});
+		    TlsCertificate[] certChain = new TlsCertificate[]{getCrypto().createCertificate(o.getContent())};
+		    Certificate certificate = new Certificate(certChain);
 
+		    Vector supportedSigAlgs = certificateRequest.getSupportedSignatureAlgorithms();
                     SignatureAndHashAlgorithm signatureAndHashAlgorithm = null;
-                    for (int i = 0; i <  certificateRequest.getSupportedSignatureAlgorithms().size(); ++i) {
-                        SignatureAndHashAlgorithm alg = (SignatureAndHashAlgorithm) supportedSignatureAlgorithms.elementAt(i);
+		    for (Object supported : supportedSigAlgs) {
+			SignatureAndHashAlgorithm alg = (SignatureAndHashAlgorithm) supported;
                         if (alg.getSignature() == SignatureAlgorithm.rsa) {
                             // Just grab the first one we find
                             signatureAndHashAlgorithm = alg;
@@ -108,7 +142,8 @@ public class TlsExample1 {
             try {
                 socket = new Socket();
                 socket.connect(new InetSocketAddress("localhost", 9999));
-                TlsClientProtocol clientProtocol = new TlsClientProtocol(socket.getInputStream(), socket.getOutputStream());
+                TlsClientProtocol clientProtocol = new TlsClientProtocol(socket.getInputStream(),
+									 socket.getOutputStream());
                 clientProtocol.connect(this);
                 System.out.println("client start handshake");
             } catch (IOException e) {
