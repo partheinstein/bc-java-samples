@@ -46,7 +46,7 @@ public class TlsExample1 {
                     try {socket.close();} catch (IOException e){}
                 }
             }
-                
+            
         }
     }
 
